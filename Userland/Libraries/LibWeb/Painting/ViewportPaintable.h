@@ -28,6 +28,8 @@ public:
     void assign_clip_frames();
     void refresh_clip_state();
 
+    void assign_alpha_masks();
+
     void resolve_paint_only_properties();
 
 private:

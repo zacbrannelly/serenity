@@ -303,9 +303,9 @@ void PaintableBox::after_children_paint(PaintContext& context, PaintPhase phase)
         return;
 
     // Apply the background-clip-text clipping to the target canvas.
-    if (phase == PaintPhase::Foreground && m_alpha_mask_id.has_value())
+    if (phase == PaintPhase::Foreground && should_apply_alpha_mask())
     {
-        context.recording_painter().blit_foreground_text_alpha_mask(m_alpha_mask_id.value());
+        context.recording_painter().blit_foreground_text_alpha_mask(get_alpha_mask_id().value());
     }
 }
 
@@ -467,12 +467,7 @@ void PaintableBox::paint_background(PaintContext& context) const
     if (computed_values().border_top().width != 0 || computed_values().border_right().width != 0 || computed_values().border_bottom().width != 0 || computed_values().border_left().width != 0)
         background_rect = absolute_border_box_rect();
 
-    // Create an allocation for the alpha mask if the background is clipped to text.
-    if (background_layers && !background_layers->is_empty() && background_layers->last().clip == CSS::BackgroundBox::Text) {
-        m_alpha_mask_id = context.allocate_foreground_text_alpha_mask_id();
-    }
-
-    Painting::paint_background(context, layout_box(), background_rect, background_color, computed_values().image_rendering(), background_layers, normalized_border_radii_data(), m_alpha_mask_id);
+    Painting::paint_background(context, layout_box(), background_rect, background_color, computed_values().image_rendering(), background_layers, normalized_border_radii_data(), get_alpha_mask_id());
 }
 
 void PaintableBox::paint_box_shadow(PaintContext& context) const
@@ -775,13 +770,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         }
     }
 
-    auto alpha_mask_id = get_alpha_mask_id();
-
-    // Go up the list of ancestors and find the first one that has an alpha mask.
-    if (!alpha_mask_id.has_value()) {
-        alpha_mask_id = get_alpha_mask_id_from_ancestors();
-    }
-
     for (auto const& fragment : m_fragments) {
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
@@ -792,7 +780,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
                 context.rounded_device_point(fragment_absolute_rect.top_right().translated(-1, fragment.baseline())).to_type<int>(), Color::Red);
         }
         if (is<Layout::TextNode>(fragment.layout_node()))
-            paint_text_fragment(context, static_cast<Layout::TextNode const&>(fragment.layout_node()), fragment, phase, alpha_mask_id);
+            paint_text_fragment(context, static_cast<Layout::TextNode const&>(fragment.layout_node()), fragment, phase, get_alpha_mask_id());
     }
 
     if (should_clip_overflow) {

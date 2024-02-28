@@ -216,8 +216,6 @@ public:
     Optional<CSSPixelRect> clip_rect() const;
     Span<BorderRadiiClip const> border_radii_clips() const;
 
-    Optional<u32> get_alpha_mask_id() const { return m_alpha_mask_id; }
-
 protected:
     explicit PaintableBox(Layout::Box const&);
 
@@ -249,7 +247,6 @@ private:
 
     mutable bool m_clipping_overflow { false };
     mutable Vector<u32> m_corner_clipper_ids;
-    mutable Optional<u32> m_alpha_mask_id;
 
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
     RefPtr<ClipFrame const> m_enclosing_clip_frame;

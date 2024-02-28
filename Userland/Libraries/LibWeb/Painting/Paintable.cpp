@@ -38,6 +38,11 @@ bool Paintable::is_visible() const
     return computed_values().visibility() == CSS::Visibility::Visible && computed_values().opacity() != 0;
 }
 
+bool Paintable::should_apply_alpha_mask() const
+{
+    return !computed_values().background_layers().is_empty() && m_alpha_mask_id.has_value();
+}
+
 bool Paintable::is_positioned() const
 {
     if (layout_node().is_grid_item() && computed_values().z_index().has_value()) {
@@ -170,21 +175,6 @@ CSSPixelPoint Paintable::box_type_agnostic_position() const
     }
 
     return position;
-}
-
-Optional<u32> Paintable::get_alpha_mask_id_from_ancestors() const
-{
-    Optional<u32> alpha_mask_id;
-    auto const containing_block = layout_node().containing_block();
-    for (auto* ancestor = containing_block; ancestor; ancestor = ancestor->containing_block()) {
-        if (ancestor->paintable() && ancestor->paintable()->fast_is<PaintableWithLines>()) {
-            auto const& ancestor_with_lines = static_cast<PaintableWithLines const&>(*ancestor->paintable());
-            alpha_mask_id = ancestor_with_lines.get_alpha_mask_id();
-            if (alpha_mask_id.has_value()) break;
-        }
-    }
-
-    return alpha_mask_id;
 }
 
 }

@@ -119,6 +119,36 @@ void ViewportPaintable::assign_clip_frames()
     });
 }
 
+void recursively_assign_alpha_masks(u32* alpha_mask_id_gen, Paintable& paintable, Optional<u32> inherit_alpha_mask_id = {})
+{
+    Optional<u32> current_alpha_mask_id;
+    if (paintable.is_paintable_box()) {
+        auto& paintable_box = static_cast<PaintableBox&>(paintable);
+        auto* background_layers = &paintable_box.computed_values().background_layers();
+
+        if (background_layers && !background_layers->is_empty() && background_layers->last().clip == CSS::BackgroundBox::Text) {
+            current_alpha_mask_id = (*alpha_mask_id_gen)++;
+        }
+    }
+
+    if (current_alpha_mask_id.has_value()) {
+        paintable.set_alpha_mask_id(current_alpha_mask_id);
+    } else {
+        paintable.set_alpha_mask_id(inherit_alpha_mask_id);
+        current_alpha_mask_id = inherit_alpha_mask_id;
+    }
+
+    for (auto* child = paintable.first_child(); child; child = child->next_sibling()) {
+        recursively_assign_alpha_masks(alpha_mask_id_gen, *child, current_alpha_mask_id);
+    }
+}
+
+void ViewportPaintable::assign_alpha_masks()
+{
+    u32 alpha_mask_id = 0;
+    recursively_assign_alpha_masks(&alpha_mask_id, *this);
+}
+
 void ViewportPaintable::refresh_scroll_state()
 {
     for (auto& it : scroll_state) {

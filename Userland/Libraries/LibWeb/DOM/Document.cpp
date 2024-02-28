@@ -1098,6 +1098,7 @@ void Document::update_layout()
         //       nested navigable documents.
         paintable()->assign_scroll_frames();
         paintable()->assign_clip_frames();
+        paintable()->assign_alpha_masks();
 
         page().client().page_did_layout();
     }

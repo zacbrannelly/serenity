@@ -165,7 +165,11 @@ public:
 
     Layout::Node const& layout_node() const { return m_layout_node; }
     Layout::Node& layout_node() { return const_cast<Layout::Node&>(*m_layout_node); }
-    Optional<u32> get_alpha_mask_id_from_ancestors() const;
+
+    void set_alpha_mask_id(Optional<u32> id) { m_alpha_mask_id = id; }
+    Optional<u32> get_alpha_mask_id() const { return m_alpha_mask_id; }
+
+    bool should_apply_alpha_mask() const;
 
     [[nodiscard]] JS::GCPtr<DOM::Node> dom_node();
     [[nodiscard]] JS::GCPtr<DOM::Node const> dom_node() const;
@@ -213,6 +217,7 @@ private:
     Optional<JS::GCPtr<Layout::Box const>> mutable m_containing_block;
 
     OwnPtr<StackingContext> m_stacking_context;
+    Optional<u32> m_alpha_mask_id;
 };
 
 inline DOM::Node* HitTestResult::dom_node()

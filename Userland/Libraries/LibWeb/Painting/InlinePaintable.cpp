@@ -173,12 +173,9 @@ void InlinePaintable::paint(PaintContext& context, PaintPhase phase) const
     }
 
     if (phase == PaintPhase::Foreground) {
-        // Go up the list of ancestors and find an alpha mask to use.
-        auto alpha_mask_id = get_alpha_mask_id_from_ancestors();
-
         for_each_fragment([&](auto const& fragment, bool, bool) {
             if (is<Layout::TextNode>(fragment.layout_node()))
-                paint_text_fragment(context, static_cast<Layout::TextNode const&>(fragment.layout_node()), fragment, phase, alpha_mask_id);
+                paint_text_fragment(context, static_cast<Layout::TextNode const&>(fragment.layout_node()), fragment, phase, get_alpha_mask_id());
         });
     }
 

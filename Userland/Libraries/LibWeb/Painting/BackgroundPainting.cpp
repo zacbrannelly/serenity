@@ -64,7 +64,6 @@ static CSSPixelSize run_default_sizing_algorithm(
 void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSSPixelRect const& border_rect, Color background_color, CSS::ImageRendering image_rendering, Vector<CSS::BackgroundLayerData> const* background_layers, BorderRadiiData const& border_radii, Optional<u32> alpha_mask_id)
 {
     auto& painter = context.recording_painter();
-    auto should_text_clip = alpha_mask_id.has_value();
 
     struct BackgroundBox {
         CSSPixelRect rect;
@@ -110,6 +109,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
     };
 
     bool has_paintable_layers = false;
+    bool should_text_clip = false;
     if (background_layers) {
         for (auto& layer : *background_layers) {
             if (layer_is_paintable(layer)) {
@@ -117,6 +117,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
                 break;
             }
         }
+        should_text_clip = !background_layers->is_empty() && background_layers->last().clip == CSS::BackgroundBox::Text;
     }
 
     if (should_text_clip) {
