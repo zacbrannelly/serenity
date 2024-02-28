@@ -807,6 +807,7 @@ struct BlitState {
         NoAlpha = 0,
         SrcAlpha = 1,
         DstAlpha = 2,
+        SrcAlphaOnly = 4,
         BothAlpha = SrcAlpha | DstAlpha
     };
 
@@ -845,6 +846,14 @@ static void do_blit_with_opacity(BlitState& state)
                 float pixel_opacity = src_color_with_alpha.alpha() / 255.0;
                 src_color_with_alpha.set_alpha(255 * (state.opacity * pixel_opacity));
                 state.dst[x] = dest_color.blend(src_color_with_alpha).value();
+            } else if constexpr (has_alpha & BlitState::SrcAlphaOnly) {
+                Color src_color_with_alpha = Color::from_argb(state.src[x]);
+                if (state.src_format == BitmapFormat::RGBA8888)
+                    swap_red_and_blue_channels(src_color_with_alpha);
+                float pixel_opacity = src_color_with_alpha.alpha() / 255.0;
+                src_color_with_alpha.set_alpha(255 * (state.opacity * pixel_opacity));
+                dest_color.set_alpha(src_color_with_alpha.alpha());
+                state.dst[x] = dest_color.value();
             } else {
                 Color src_color_with_alpha = Color::from_rgb(state.src[x]);
                 if (state.src_format == BitmapFormat::RGBA8888)
@@ -906,6 +915,41 @@ void Painter::blit_with_opacity(IntPoint position, Gfx::Bitmap const& source, In
         else
             do_blit_with_opacity<BlitState::NoAlpha>(blit_state);
     }
+}
+
+void Painter::blit_alpha_mask(IntPoint position, Gfx::Bitmap const& source, IntRect const& a_src_rect)
+{
+    VERIFY(scale() >= source.scale() && "painter doesn't support downsampling scale factors");
+    VERIFY(source.has_alpha_channel() && "blit_alpha_mask requires source bitmap to have an alpha channel");
+
+    auto safe_src_rect = IntRect::intersection(a_src_rect, source.rect());
+    auto dst_rect = IntRect(position, safe_src_rect.size()).translated(translation());
+    auto clipped_rect = dst_rect.intersected(clip_rect());
+    if (clipped_rect.is_empty())
+        return;
+
+    int scale = this->scale();
+    auto src_rect = a_src_rect * scale;
+    clipped_rect *= scale;
+    dst_rect *= scale;
+
+    int const first_row = clipped_rect.top() - dst_rect.top();
+    int const last_row = clipped_rect.bottom() - dst_rect.top();
+    int const first_column = clipped_rect.left() - dst_rect.left();
+    int const last_column = clipped_rect.right() - dst_rect.left();
+
+    BlitState blit_state {
+        .src = source.scanline(src_rect.top() + first_row) + src_rect.left() + first_column,
+        .dst = m_target->scanline(clipped_rect.y()) + clipped_rect.x(),
+        .src_pitch = source.pitch() / sizeof(ARGB32),
+        .dst_pitch = m_target->pitch() / sizeof(ARGB32),
+        .row_count = last_row - first_row,
+        .column_count = last_column - first_column,
+        .opacity = 1.0f,
+        .src_format = source.format(),
+    };
+
+    do_blit_with_opacity<BlitState::SrcAlphaOnly>(blit_state);
 }
 
 void Painter::blit_filtered(IntPoint position, Gfx::Bitmap const& source, IntRect const& src_rect, Function<Color(Color)> const& filter, bool apply_alpha)

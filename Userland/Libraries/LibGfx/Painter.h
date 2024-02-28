@@ -95,6 +95,7 @@ public:
     void draw_cubic_bezier_curve(IntPoint control_point_0, IntPoint control_point_1, IntPoint, IntPoint, Color, int thickness = 1, LineStyle style = LineStyle::Solid);
     void draw_elliptical_arc(IntPoint p1, IntPoint p2, IntPoint center, FloatSize radii, float x_axis_rotation, float theta_1, float theta_delta, Color, int thickness = 1, LineStyle style = LineStyle::Solid);
     void blit(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, float opacity = 1.0f, bool apply_alpha = true);
+    void blit_alpha_mask(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect);
     void blit_dimmed(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect);
     void blit_brightened(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect);
     void blit_filtered(IntPoint, Gfx::Bitmap const&, IntRect const& src_rect, Function<Color(Color)> const&, bool apply_alpha = true);
