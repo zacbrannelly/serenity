@@ -126,8 +126,14 @@ void recursively_assign_alpha_masks(u32* alpha_mask_id_gen, Paintable& paintable
         auto& paintable_box = static_cast<PaintableBox&>(paintable);
         auto* background_layers = &paintable_box.computed_values().background_layers();
 
-        if (background_layers && !background_layers->is_empty() && background_layers->last().clip == CSS::BackgroundBox::Text) {
+        bool has_bg_layers = background_layers && !background_layers->is_empty();
+        if (has_bg_layers && background_layers->last().clip == CSS::BackgroundBox::Text) {
+            // Create a new alpha mask for text-clipped backgrounds.
             current_alpha_mask_id = (*alpha_mask_id_gen)++;
+        } else if (has_bg_layers) {
+            // Make sure we don't inherit an alpha mask if we have background layers that are not text-clipped.
+            current_alpha_mask_id = {};
+            inherit_alpha_mask_id = {};
         }
     }
 
