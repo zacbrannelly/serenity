@@ -165,6 +165,7 @@ public:
 
     Layout::Node const& layout_node() const { return m_layout_node; }
     Layout::Node& layout_node() { return const_cast<Layout::Node&>(*m_layout_node); }
+    Optional<u32> get_alpha_mask_id_from_ancestors() const;
 
     [[nodiscard]] JS::GCPtr<DOM::Node> dom_node();
     [[nodiscard]] JS::GCPtr<DOM::Node const> dom_node() const;

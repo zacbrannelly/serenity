@@ -73,6 +73,7 @@ public:
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
 
     u32 allocate_corner_clipper_id() { return m_next_corner_clipper_id++; }
+    u32 allocate_foreground_text_alpha_mask_id() { return m_next_foreground_text_alpha_mask_id++; }
 
 private:
     Painting::RecordingPainter& m_recording_painter;
@@ -84,6 +85,7 @@ private:
     bool m_focus { false };
     Gfx::AffineTransform m_svg_transform;
     u32 m_next_corner_clipper_id { 0 };
+    u32 m_next_foreground_text_alpha_mask_id { 0 };
 };
 
 }

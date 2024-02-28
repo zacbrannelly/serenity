@@ -61,9 +61,10 @@ static CSSPixelSize run_default_sizing_algorithm(
 }
 
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
-void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSSPixelRect const& border_rect, Color background_color, CSS::ImageRendering image_rendering, Vector<CSS::BackgroundLayerData> const* background_layers, BorderRadiiData const& border_radii)
+void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSSPixelRect const& border_rect, Color background_color, CSS::ImageRendering image_rendering, Vector<CSS::BackgroundLayerData> const* background_layers, BorderRadiiData const& border_radii, Optional<u32> alpha_mask_id)
 {
     auto& painter = context.recording_painter();
+    auto should_text_clip = alpha_mask_id.has_value();
 
     struct BackgroundBox {
         CSSPixelRect rect;
@@ -118,13 +119,23 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         }
     }
 
-    context.recording_painter().fill_rect_with_rounded_corners(
+    if (should_text_clip) {
+        // Create an alpha mask for the foreground text.
+        painter.create_foreground_text_alpha_mask(alpha_mask_id.value(), context.rounded_device_rect(color_box.rect).to_type<int>());
+        painter.push_alpha_mask_id(alpha_mask_id.value());
+    } 
+
+    painter.fill_rect_with_rounded_corners(
         context.rounded_device_rect(color_box.rect).to_type<int>(),
         background_color,
         color_box.radii.top_left.as_corner(context),
         color_box.radii.top_right.as_corner(context),
         color_box.radii.bottom_right.as_corner(context),
         color_box.radii.bottom_left.as_corner(context));
+
+    if (should_text_clip) {
+        painter.pop_alpha_mask_id();
+    }
 
     if (!has_paintable_layers)
         return;
@@ -375,6 +386,10 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
             }
         };
 
+        if (should_text_clip) {
+            painter.push_alpha_mask_id(alpha_mask_id.value());
+        }
+
         if (auto color = image.color_if_single_pixel_bitmap(); color.has_value()) {
             // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
             //               However, we must first figure out the real coverage area, taking repeat etc into account.
@@ -393,6 +408,10 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
             for_each_image_device_rect([&](auto const& image_device_rect) {
                 image.paint(context, image_device_rect, image_rendering);
             });
+        }
+
+        if (should_text_clip) {
+            painter.pop_alpha_mask_id();
         }
     }
 }

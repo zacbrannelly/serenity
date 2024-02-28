@@ -45,6 +45,10 @@ public:
     CommandResult sample_under_corners(u32 id, CornerRadii const&, Gfx::IntRect const&, CornerClip) override;
     CommandResult blit_corner_clipping(u32) override;
     CommandResult paint_borders(DevicePixelRect const& border_rect, CornerRadii const& corner_radii, BordersDataDevicePixels const& borders_data) override;
+    CommandResult create_foreground_text_alpha_mask(u32 id, Gfx::IntRect const& background_rect) override;
+    CommandResult blit_foreground_text_alpha_mask(u32 id) override;
+    CommandResult push_alpha_mask_id(u32 id) override;
+    CommandResult pop_alpha_mask_id() override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
@@ -86,11 +90,20 @@ private:
         Gfx::FloatRect sample_canvas_bottom_left_rect;
     };
 
+    struct ForegroundTextAlphaMask {
+        RefPtr<AccelGfx::Canvas> background_canvas;
+        RefPtr<AccelGfx::Canvas> mask_canvas;
+        OwnPtr<AccelGfx::Painter> background_painter;
+        OwnPtr<AccelGfx::Painter> mask_painter;
+        Gfx::IntRect destination_rect;
+    };
+
     [[nodiscard]] AccelGfx::Painter const& painter() const { return *m_stacking_contexts.last().painter; }
     [[nodiscard]] AccelGfx::Painter& painter() { return *m_stacking_contexts.last().painter; }
 
     Vector<StackingContext> m_stacking_contexts;
     Vector<OwnPtr<BorderRadiusCornerClipper>> m_corner_clippers;
+    Vector<OwnPtr<ForegroundTextAlphaMask>> m_foreground_text_alpha_masks;
 };
 
 }

@@ -297,6 +297,18 @@ Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction
     };
 }
 
+void PaintableBox::after_children_paint(PaintContext& context, PaintPhase phase) const
+{
+    if (!is_visible())
+        return;
+
+    // Apply the background-clip-text clipping to the target canvas.
+    if (phase == PaintPhase::Foreground && m_alpha_mask_id.has_value())
+    {
+        context.recording_painter().blit_foreground_text_alpha_mask(m_alpha_mask_id.value());
+    }
+}
+
 void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -455,7 +467,12 @@ void PaintableBox::paint_background(PaintContext& context) const
     if (computed_values().border_top().width != 0 || computed_values().border_right().width != 0 || computed_values().border_bottom().width != 0 || computed_values().border_left().width != 0)
         background_rect = absolute_border_box_rect();
 
-    Painting::paint_background(context, layout_box(), background_rect, background_color, computed_values().image_rendering(), background_layers, normalized_border_radii_data());
+    // Create an allocation for the alpha mask if the background is clipped to text.
+    if (background_layers && !background_layers->is_empty() && background_layers->last().clip == CSS::BackgroundBox::Text) {
+        m_alpha_mask_id = context.allocate_foreground_text_alpha_mask_id();
+    }
+
+    Painting::paint_background(context, layout_box(), background_rect, background_color, computed_values().image_rendering(), background_layers, normalized_border_radii_data(), m_alpha_mask_id);
 }
 
 void PaintableBox::paint_box_shadow(PaintContext& context) const
@@ -654,9 +671,10 @@ void paint_text_decoration(PaintContext& context, Layout::Node const& text_node,
     }
 }
 
-void paint_text_fragment(PaintContext& context, Layout::TextNode const& text_node, PaintableFragment const& fragment, PaintPhase phase)
+void paint_text_fragment(PaintContext& context, Layout::TextNode const& text_node, PaintableFragment const& fragment, PaintPhase phase, Optional<u32> foreground_text_alpha_mask_id)
 {
     auto& painter = context.recording_painter();
+    auto should_paint_to_alpha_mask = foreground_text_alpha_mask_id.has_value();
 
     if (phase == PaintPhase::Foreground) {
         auto fragment_absolute_rect = fragment.absolute_rect();
@@ -666,6 +684,9 @@ void paint_text_fragment(PaintContext& context, Layout::TextNode const& text_nod
             context.recording_painter().draw_rect(fragment_absolute_device_rect.to_type<int>(), Color::Magenta);
 
         auto text = text_node.text_for_rendering();
+
+        if (should_paint_to_alpha_mask)
+            painter.push_alpha_mask_id(foreground_text_alpha_mask_id.value());
 
         DevicePixelPoint baseline_start { fragment_absolute_device_rect.x(), fragment_absolute_device_rect.y() + context.rounded_device_pixels(fragment.baseline()) };
         Vector<Gfx::DrawGlyphOrEmoji> scaled_glyph_run;
@@ -681,11 +702,23 @@ void paint_text_fragment(PaintContext& context, Layout::TextNode const& text_nod
 
         auto selection_rect = context.enclosing_device_rect(fragment.selection_rect(text_node.first_available_font())).to_type<int>();
         if (!selection_rect.is_empty()) {
+            // Avoid painting the selection rect to the alpha mask, its not part of the background layer.
+            if (should_paint_to_alpha_mask)
+                painter.pop_alpha_mask_id();
+            
             painter.fill_rect(selection_rect, CSS::SystemColor::highlight());
+
+            // Paint the text highlight to the alpha mask so it is applied above the text.
+            if (should_paint_to_alpha_mask)
+                painter.push_alpha_mask_id(foreground_text_alpha_mask_id.value());
+
             RecordingPainterStateSaver saver(painter);
             painter.add_clip_rect(selection_rect);
             painter.draw_text_run(baseline_start.to_type<int>(), scaled_glyph_run, CSS::SystemColor::highlight_text(), fragment_absolute_device_rect.to_type<int>());
         }
+
+        if (should_paint_to_alpha_mask)
+            painter.pop_alpha_mask_id();
 
         paint_text_decoration(context, text_node, fragment);
         paint_cursor_if_needed(context, text_node, fragment);
@@ -742,6 +775,13 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         }
     }
 
+    auto alpha_mask_id = get_alpha_mask_id();
+
+    // Go up the list of ancestors and find the first one that has an alpha mask.
+    if (!alpha_mask_id.has_value()) {
+        alpha_mask_id = get_alpha_mask_id_from_ancestors();
+    }
+
     for (auto const& fragment : m_fragments) {
         auto fragment_absolute_rect = fragment.absolute_rect();
         auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
@@ -752,7 +792,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
                 context.rounded_device_point(fragment_absolute_rect.top_right().translated(-1, fragment.baseline())).to_type<int>(), Color::Red);
         }
         if (is<Layout::TextNode>(fragment.layout_node()))
-            paint_text_fragment(context, static_cast<Layout::TextNode const&>(fragment.layout_node()), fragment, phase);
+            paint_text_fragment(context, static_cast<Layout::TextNode const&>(fragment.layout_node()), fragment, phase, alpha_mask_id);
     }
 
     if (should_clip_overflow) {

@@ -102,6 +102,11 @@ public:
     // Streamlined text drawing routine that does no wrapping/elision/alignment.
     void draw_text_run(Gfx::IntPoint baseline_start, Span<Gfx::DrawGlyphOrEmoji const> glyph_run, Color color, Gfx::IntRect const& rect);
 
+    void create_foreground_text_alpha_mask(u32 id, Gfx::IntRect const& background_rect);
+    void blit_foreground_text_alpha_mask(u32 id);
+    void push_alpha_mask_id(u32 id);
+    void pop_alpha_mask_id();
+
     void add_clip_rect(Gfx::IntRect const& rect);
 
     void translate(int dx, int dy);

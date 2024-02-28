@@ -379,4 +379,28 @@ void RecordingPainter::paint_borders(DevicePixelRect const& border_rect, CornerR
     append(PaintBorders { border_rect, corner_radii, borders_data });
 }
 
+
+void RecordingPainter::create_foreground_text_alpha_mask(u32 id, Gfx::IntRect const& background_rect)
+{
+    append(CreateForegroundTextAlphaMask {
+        .id = id,
+        .background_rect = state().translation.map(background_rect),
+    });
+}
+
+void RecordingPainter::blit_foreground_text_alpha_mask(u32 id)
+{
+    append(BlitForegroundTextAlphaMask { id });
+}
+
+void RecordingPainter::push_alpha_mask_id(u32 id)
+{
+    append(PushAlphaMaskId { id });
+}
+
+void RecordingPainter::pop_alpha_mask_id()
+{
+    append(PopAlphaMaskId {});
+}
+
 }

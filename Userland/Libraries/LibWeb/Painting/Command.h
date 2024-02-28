@@ -395,6 +395,20 @@ struct PaintBorders {
     }
 };
 
+struct CreateForegroundTextAlphaMask {
+    u32 id;
+    Gfx::IntRect background_rect;
+};
+struct BlitForegroundTextAlphaMask {
+    u32 id;
+};
+
+struct PushAlphaMaskId {
+    u32 id;
+};
+
+struct PopAlphaMaskId { };
+
 using Command = Variant<
     DrawGlyphRun,
     DrawText,
@@ -426,6 +440,10 @@ using Command = Variant<
     DrawTriangleWave,
     SampleUnderCorners,
     BlitCornerClipping,
-    PaintBorders>;
+    PaintBorders,
+    CreateForegroundTextAlphaMask,
+    BlitForegroundTextAlphaMask,
+    PushAlphaMaskId,
+    PopAlphaMaskId>;
 
 }

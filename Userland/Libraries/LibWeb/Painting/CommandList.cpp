@@ -210,6 +210,18 @@ void CommandList::execute(CommandExecutor& executor)
             },
             [&](PaintBorders const& command) {
                 return executor.paint_borders(command.border_rect, command.corner_radii, command.borders_data);
+            },
+            [&](CreateForegroundTextAlphaMask const& command) {
+                return executor.create_foreground_text_alpha_mask(command.id, command.background_rect);
+            },
+            [&](BlitForegroundTextAlphaMask const& command) {
+                return executor.blit_foreground_text_alpha_mask(command.id);
+            },
+            [&](PushAlphaMaskId const& command) {
+                return executor.push_alpha_mask_id(command.id);
+            },
+            [&](PopAlphaMaskId const&) {
+                return executor.pop_alpha_mask_id();
             });
 
         if (result == CommandResult::SkipStackingContext) {

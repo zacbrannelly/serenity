@@ -29,6 +29,7 @@ public:
 
     virtual void before_paint(PaintContext&, PaintPhase) const override;
     virtual void after_paint(PaintContext&, PaintPhase) const override;
+    virtual void after_children_paint(PaintContext&, PaintPhase) const override;
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 
@@ -215,6 +216,8 @@ public:
     Optional<CSSPixelRect> clip_rect() const;
     Span<BorderRadiiClip const> border_radii_clips() const;
 
+    Optional<u32> get_alpha_mask_id() const { return m_alpha_mask_id; }
+
 protected:
     explicit PaintableBox(Layout::Box const&);
 
@@ -246,6 +249,7 @@ private:
 
     mutable bool m_clipping_overflow { false };
     mutable Vector<u32> m_corner_clipper_ids;
+    mutable Optional<u32> m_alpha_mask_id;
 
     RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
     RefPtr<ClipFrame const> m_enclosing_clip_frame;
@@ -314,6 +318,6 @@ private:
 
 void paint_text_decoration(PaintContext& context, Layout::Node const& text_node, PaintableFragment const& fragment);
 void paint_cursor_if_needed(PaintContext& context, Layout::TextNode const& text_node, PaintableFragment const& fragment);
-void paint_text_fragment(PaintContext& context, Layout::TextNode const& text_node, PaintableFragment const& fragment, PaintPhase phase);
+void paint_text_fragment(PaintContext& context, Layout::TextNode const& text_node, PaintableFragment const& fragment, PaintPhase phase, Optional<u32> foreground_text_alpha_mask_id = {});
 
 }

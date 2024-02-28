@@ -14,6 +14,7 @@ namespace Web::Painting {
 class CommandExecutorCPU : public CommandExecutor {
 public:
     CommandResult draw_glyph_run(Vector<Gfx::DrawGlyphOrEmoji> const& glyph_run, Color const&) override;
+    CommandResult draw_glyph_run(Gfx::Painter& painter, Vector<Gfx::DrawGlyphOrEmoji> const& glyph_run, Color const&);
     CommandResult draw_text(Gfx::IntRect const& rect, String const& raw_text, Gfx::TextAlignment alignment, Color const&, Gfx::TextElision, Gfx::TextWrapping, Optional<NonnullRefPtr<Gfx::Font>> const&) override;
     CommandResult fill_rect(Gfx::IntRect const& rect, Color const&) override;
     CommandResult draw_scaled_bitmap(Gfx::IntRect const& dst_rect, Gfx::Bitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::Painter::ScalingMode scaling_mode) override;
@@ -44,6 +45,10 @@ public:
     CommandResult sample_under_corners(u32 id, CornerRadii const&, Gfx::IntRect const&, CornerClip) override;
     CommandResult blit_corner_clipping(u32 id) override;
     CommandResult paint_borders(DevicePixelRect const& border_rect, CornerRadii const& corner_radii, BordersDataDevicePixels const& borders_data) override;
+    CommandResult create_foreground_text_alpha_mask(u32 id, Gfx::IntRect const& background_rect) override;
+    CommandResult blit_foreground_text_alpha_mask(u32 id) override;
+    CommandResult push_alpha_mask_id(u32 id) override;
+    CommandResult pop_alpha_mask_id() override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
@@ -67,10 +72,34 @@ private:
         Optional<StackingContextMask> mask = {};
     };
 
-    [[nodiscard]] Gfx::Painter const& painter() const { return *stacking_contexts.last().painter; }
-    [[nodiscard]] Gfx::Painter& painter() { return *stacking_contexts.last().painter; }
+    struct ForegroundTextAlphaMask {
+        RefPtr<Gfx::Bitmap> background_canvas;
+        RefPtr<Gfx::Bitmap> mask_canvas;
+        OwnPtr<Gfx::Painter> background_painter;
+        OwnPtr<Gfx::Painter> mask_painter;
+        Gfx::IntRect destination_rect;
+    };
+
+    [[nodiscard]] Gfx::Painter const& painter() const {
+        if (m_alpha_mask_stack.size() > 0) {
+            // If rendering to an alpha mask, by default render to the background canvas.
+            return *(m_foreground_text_alpha_masks[m_alpha_mask_stack.last()]->background_painter);
+        }
+        return *stacking_contexts.last().painter;
+    }
+    [[nodiscard]] Gfx::Painter& painter() {
+        if (m_alpha_mask_stack.size() > 0) {
+            // If rendering to an alpha mask, by default render to the background canvas.
+            return *(m_foreground_text_alpha_masks[m_alpha_mask_stack.last()]->background_painter);
+        }
+        return *stacking_contexts.last().painter;
+    }
+    [[nodiscard]] Gfx::Painter const& target_painter() const { return *stacking_contexts.last().painter; }
+    [[nodiscard]] Gfx::Painter& target_painter() { return *stacking_contexts.last().painter; }
 
     Vector<StackingContext> stacking_contexts;
+    Vector<OwnPtr<ForegroundTextAlphaMask>> m_foreground_text_alpha_masks;
+    Vector<u32> m_alpha_mask_stack;
 };
 
 }

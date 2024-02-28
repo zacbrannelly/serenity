@@ -83,6 +83,10 @@ public:
     virtual CommandResult sample_under_corners(u32 id, CornerRadii const&, Gfx::IntRect const&, CornerClip) = 0;
     virtual CommandResult blit_corner_clipping(u32 id) = 0;
     virtual CommandResult paint_borders(DevicePixelRect const& border_rect, CornerRadii const& corner_radii, BordersDataDevicePixels const& borders_data) = 0;
+    virtual CommandResult create_foreground_text_alpha_mask(u32 id, Gfx::IntRect const& background_rect) = 0;
+    virtual CommandResult blit_foreground_text_alpha_mask(u32 id) = 0;
+    virtual CommandResult push_alpha_mask_id(u32 id) = 0;
+    virtual CommandResult pop_alpha_mask_id() = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
     virtual bool needs_prepare_glyphs_texture() const { return false; }
     virtual void prepare_glyph_texture(HashMap<Gfx::Font const*, HashTable<u32>> const& unique_glyphs) = 0;

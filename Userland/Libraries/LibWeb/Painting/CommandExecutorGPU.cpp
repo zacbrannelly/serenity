@@ -431,4 +431,28 @@ void CommandExecutorGPU::update_immutable_bitmap_texture_cache(HashMap<u32, Gfx:
     painter().update_immutable_bitmap_texture_cache(immutable_bitmaps);
 }
 
+CommandResult CommandExecutorGPU::create_foreground_text_alpha_mask(u32, Gfx::IntRect const&)
+{
+    // FIXME
+    return CommandResult::Continue;
+}
+
+CommandResult CommandExecutorGPU::blit_foreground_text_alpha_mask(u32)
+{
+    // FIXME
+    return CommandResult::Continue;    
+}
+
+CommandResult CommandExecutorGPU::push_alpha_mask_id(u32)
+{
+    // FIXME
+    return CommandResult::Continue;
+}
+
+CommandResult CommandExecutorGPU::pop_alpha_mask_id()
+{
+    // FIXME
+    return CommandResult::Continue;
+}
+
 }

@@ -26,7 +26,24 @@ CommandExecutorCPU::CommandExecutorCPU(Gfx::Bitmap& bitmap)
 
 CommandResult CommandExecutorCPU::draw_glyph_run(Vector<Gfx::DrawGlyphOrEmoji> const& glyph_run, Color const& color)
 {
+    if (m_alpha_mask_stack.size() > 0) {
+        auto const& id = m_alpha_mask_stack.last();
+        auto const& foreground_text_alpha_mask = *m_foreground_text_alpha_masks[id];
+        auto& background_painter = *foreground_text_alpha_mask.background_painter;
+        auto& mask_painter = *foreground_text_alpha_mask.mask_painter;
+        
+        draw_glyph_run(mask_painter, glyph_run, Color::White);
+        draw_glyph_run(background_painter, glyph_run, color);
+
+        return CommandResult::Continue;
+    }
+
     auto& painter = this->painter();
+    return draw_glyph_run(painter, glyph_run, color);
+}
+
+CommandResult CommandExecutorCPU::draw_glyph_run(Gfx::Painter& painter, Vector<Gfx::DrawGlyphOrEmoji> const& glyph_run, Color const& color)
+{
     for (auto& glyph_or_emoji : glyph_run) {
         if (glyph_or_emoji.has<Gfx::DrawGlyph>()) {
             auto& glyph = glyph_or_emoji.get<Gfx::DrawGlyph>();
@@ -41,6 +58,7 @@ CommandResult CommandExecutorCPU::draw_glyph_run(Vector<Gfx::DrawGlyphOrEmoji> c
 
 CommandResult CommandExecutorCPU::draw_text(Gfx::IntRect const& rect, String const& raw_text, Gfx::TextAlignment alignment, Color const& color, Gfx::TextElision elision, Gfx::TextWrapping wrapping, Optional<NonnullRefPtr<Gfx::Font>> const& font)
 {
+    // FIXME: If this is called with an alpha mask active, we should draw to both the mask and the background canvas.
     auto& painter = this->painter();
     if (font.has_value()) {
         painter.draw_text(rect, raw_text, *font, alignment, color, elision, wrapping);
@@ -73,15 +91,39 @@ CommandResult CommandExecutorCPU::draw_scaled_immutable_bitmap(Gfx::IntRect cons
 
 CommandResult CommandExecutorCPU::set_clip_rect(Gfx::IntRect const& rect)
 {
-    auto& painter = this->painter();
+    auto& painter = target_painter();
     painter.clear_clip_rect();
     painter.add_clip_rect(rect);
+
+    for (auto& alpha_mask : m_foreground_text_alpha_masks) {
+        if (!alpha_mask) continue;
+
+        auto& mask_painter = *alpha_mask->mask_painter;
+        auto& background_painter = *alpha_mask->background_painter;
+
+        mask_painter.clear_clip_rect();
+        background_painter.clear_clip_rect();
+
+        background_painter.add_clip_rect(rect);
+        mask_painter.add_clip_rect(rect);
+    }
+
     return CommandResult::Continue;
 }
 
 CommandResult CommandExecutorCPU::clear_clip_rect()
 {
-    painter().clear_clip_rect();
+    target_painter().clear_clip_rect();
+
+    for (auto& alpha_mask : m_foreground_text_alpha_masks) {
+        if (!alpha_mask) continue;
+
+        auto& mask_painter = *alpha_mask->mask_painter;
+        auto& background_painter = *alpha_mask->background_painter;
+
+        mask_painter.clear_clip_rect();
+        background_painter.clear_clip_rect();
+    }
     return CommandResult::Continue;
 }
 
@@ -418,6 +460,59 @@ CommandResult CommandExecutorCPU::paint_borders(DevicePixelRect const& border_re
 bool CommandExecutorCPU::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const
 {
     return !painter().clip_rect().intersects(rect.translated(painter().translation()));
+}
+
+CommandResult CommandExecutorCPU::create_foreground_text_alpha_mask(u32 id, Gfx::IntRect const& destination_rect)
+{
+    m_foreground_text_alpha_masks.resize(id + 1);
+    m_foreground_text_alpha_masks[id] = make<ForegroundTextAlphaMask>();
+    auto& foreground_text_alpha_mask = *m_foreground_text_alpha_masks[id];
+
+    foreground_text_alpha_mask.destination_rect = destination_rect;
+
+    // Create a canvas for the mask (which will be used to clip the background to the text).
+    foreground_text_alpha_mask.mask_canvas = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, destination_rect.size()).release_value_but_fixme_should_propagate_errors();
+    foreground_text_alpha_mask.mask_painter = make<Gfx::Painter>(*foreground_text_alpha_mask.mask_canvas);
+    foreground_text_alpha_mask.mask_painter->translate(-destination_rect.location());
+    foreground_text_alpha_mask.mask_painter->clear_rect(destination_rect, Color::Transparent);
+
+    // Create a canvas for the background (where both the background and text will be drawn).
+    foreground_text_alpha_mask.background_canvas = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, destination_rect.size()).release_value_but_fixme_should_propagate_errors();
+    foreground_text_alpha_mask.background_painter = make<Gfx::Painter>(*foreground_text_alpha_mask.background_canvas);
+    foreground_text_alpha_mask.background_painter->translate(-destination_rect.location());
+    foreground_text_alpha_mask.background_painter->clear_rect(destination_rect, Color::Transparent);
+
+    return CommandResult::Continue;
+}
+
+CommandResult CommandExecutorCPU::blit_foreground_text_alpha_mask(u32 id)
+{
+    auto& foreground_text_alpha_mask = *m_foreground_text_alpha_masks[id];
+    auto& destination_rect = foreground_text_alpha_mask.destination_rect;
+    auto& background_painter = *foreground_text_alpha_mask.background_painter;
+    auto& background_canvas = *foreground_text_alpha_mask.background_canvas;
+    auto& mask_canvas = *foreground_text_alpha_mask.mask_canvas;
+
+    // Clip the background to the mask.
+    background_painter.blit_alpha_mask(destination_rect.location(), mask_canvas, mask_canvas.rect());
+
+    // Blit background to the target bitmap.
+    target_painter().blit(foreground_text_alpha_mask.destination_rect.location(), background_canvas, background_canvas.rect());
+
+    // m_foreground_text_alpha_masks[id].clear();
+    return CommandResult::Continue;
+}
+
+CommandResult CommandExecutorCPU::push_alpha_mask_id(u32 id)
+{
+    m_alpha_mask_stack.append(id); 
+    return CommandResult::Continue;
+}
+
+CommandResult CommandExecutorCPU::pop_alpha_mask_id()
+{
+    m_alpha_mask_stack.take_last();
+    return CommandResult::Continue;
 }
 
 }
