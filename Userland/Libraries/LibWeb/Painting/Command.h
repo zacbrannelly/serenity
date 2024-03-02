@@ -63,6 +63,7 @@ struct DrawText {
 struct FillRect {
     Gfx::IntRect rect;
     Color color;
+    Vector<Gfx::Path> clip_paths;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
@@ -83,6 +84,7 @@ struct DrawScaledImmutableBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::IntRect src_rect;
     Gfx::Painter::ScalingMode scaling_mode;
+    Vector<Gfx::Path> clip_paths;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
@@ -126,6 +128,7 @@ struct PopStackingContext { };
 struct PaintLinearGradient {
     Gfx::IntRect gradient_rect;
     LinearGradientData linear_gradient_data;
+    Vector<Gfx::Path> clip_paths;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return gradient_rect; }
 
@@ -168,6 +171,7 @@ struct FillRectWithRoundedCorners {
     Gfx::AntiAliasingPainter::CornerRadius top_right_radius;
     Gfx::AntiAliasingPainter::CornerRadius bottom_left_radius;
     Gfx::AntiAliasingPainter::CornerRadius bottom_right_radius;
+    Vector<Gfx::Path> clip_paths;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
@@ -332,6 +336,7 @@ struct PaintRadialGradient {
     RadialGradientData radial_gradient_data;
     Gfx::IntPoint center;
     Gfx::IntSize size;
+    Vector<Gfx::Path> clip_paths;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
@@ -342,6 +347,7 @@ struct PaintConicGradient {
     Gfx::IntRect rect;
     ConicGradientData conic_gradient_data;
     Gfx::IntPoint position;
+    Vector<Gfx::Path> clip_paths;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
